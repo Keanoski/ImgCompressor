@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JavaScript Image Compressor</title>
+    <title>Image Compressor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Add JSZip library for zipping files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -87,18 +87,25 @@
         <!-- Results Section -->
         <div id="resultsSection" class="mt-8 hidden">
              <h2 class="text-2xl font-semibold mb-4 text-center">Results</h2>
+             
+             <!-- Total Stats Summary -->
+             <div id="totalStatsContainer" class="bg-gray-50 rounded-lg p-4 max-w-md mx-auto mb-6 text-center hidden">
+                <!-- Content will be injected by JS -->
+             </div>
+
+             <!-- Container for the "Download All" button -->
              <div id="downloadAllContainer" class="text-center mt-6 hidden">
                 <button id="downloadAllButton" class="bg-purple-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all disabled:bg-gray-500 disabled:cursor-wait">
                     Download All (.zip)
                 </button>
             </div>
-            <br>
+
              <!-- Grid layout for results -->
              <div id="resultsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 <!-- Compressed image cards will be inserted here by JavaScript -->
              </div>
-             <!-- Container for the "Download All" button -->
-             
+
+            
         </div>
         
     </div>
@@ -114,14 +121,14 @@
         const downloadAllContainer = document.getElementById('downloadAllContainer');
         const downloadAllButton = document.getElementById('downloadAllButton');
         const dropOverlay = document.getElementById('dropOverlay');
+        const totalStatsContainer = document.getElementById('totalStatsContainer');
+
 
         // --- Event Listeners ---
-        // Sync slider -> input
         qualitySlider.addEventListener('input', () => {
             qualityInput.value = qualitySlider.value;
         });
 
-        // Sync input -> slider
         qualityInput.addEventListener('input', () => {
             let value = parseInt(qualityInput.value, 10);
             if (isNaN(value)) return;
@@ -161,8 +168,7 @@
         });
 
         document.body.addEventListener('dragleave', (e) => {
-            // Check if the leave is to an element outside the window
-             if (e.relatedTarget === null) {
+             if (e.relatedTarget === null || e.target === dropOverlay) {
                 dragCounter--;
                 if (dragCounter === 0) {
                     dropOverlay.classList.add('hidden');
@@ -175,7 +181,6 @@
             dropOverlay.classList.add('hidden');
             const files = e.dataTransfer.files;
             if (files && files.length > 0) {
-                // Assign the dropped files to our file input
                 fileInput.files = files;
             }
         });
@@ -189,27 +194,52 @@
                 return;
             }
 
+            // Reset UI
             compressButton.disabled = true;
             compressButton.textContent = 'Processing...';
             resultsContainer.innerHTML = '';
+            totalStatsContainer.classList.add('hidden');
             downloadAllContainer.classList.add('hidden');
             resultsSection.classList.remove('hidden');
 
-            const compressedFiles = []; 
+            const compressedFiles = [];
+            let totalOriginalSize = 0;
+            let totalCompressedSize = 0;
 
             for (const file of files) {
                 try {
                     const quality = parseInt(qualitySlider.value, 10) / 100;
                     const compressedResult = await compressImage(file, quality);
+                    
                     displayResult(file, compressedResult);
+                    
+                    // Add to lists for zipping and total calculation
                     compressedFiles.push({ originalFile: file, compressedResult });
+                    totalOriginalSize += file.size;
+                    totalCompressedSize += compressedResult.size;
+
                 } catch (error) {
                     console.error('Failed to process file:', file.name, error);
                     displayError(file, error);
                 }
             }
-
+            
+            // Display summary and "Download All" button if multiple files were compressed
             if (compressedFiles.length > 1) {
+                const totalOriginalKB = (totalOriginalSize / 1024).toFixed(1);
+                const totalCompressedKB = (totalCompressedSize / 1024).toFixed(1);
+                const totalReduction = 100 - (totalCompressedSize / totalOriginalSize * 100);
+
+                totalStatsContainer.innerHTML = `
+                    <h3 class="font-bold text-lg text-gray-800">Total Savings</h3>
+                    <p class="text-gray-600">
+                        Original: <span class="font-medium">${totalOriginalKB} KB</span> | 
+                        Compressed: <span class="font-medium text-green-600">${totalCompressedKB} KB</span>
+                    </p>
+                    <p class="font-semibold text-green-700">Total size reduction: ${totalReduction.toFixed(1)}%</p>
+                `;
+                totalStatsContainer.classList.remove('hidden');
+
                 downloadAllContainer.classList.remove('hidden');
                 downloadAllButton.onclick = () => createAndDownloadZip(compressedFiles);
             }
