@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Image Compressor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add JSZip library for zipping files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple transition for better UX */
+        .transition-all {
+            transition: all 0.3s ease-in-out;
+        }
+        .aspect-square {
+            aspect-ratio: 1 / 1;
+        }
+        /* Hide number input arrows on Chrome, Safari, Edge, Opera */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        /* Hide number input arrows on Firefox */
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+        #dropOverlay {
+            transition: opacity 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Drag and Drop Overlay -->
+    <div id="dropOverlay" class="hidden fixed inset-0 bg-blue-600 bg-opacity-70 z-50 flex items-center justify-center border-4 border-dashed border-white rounded-lg p-4">
+        <div class="text-center text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <h2 class="text-3xl font-bold mt-4">Drop files anywhere</h2>
+        </div>
+    </div>
+
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Image Compressor</h1>
+            <p class="text-gray-600 mt-2">Compress your JPG, PNG, and BMP images directly in your browser.</p>
+        </header>
+
+        <!-- Main Application Card -->
+        <div class="bg-white rounded-xl shadow-lg p-6 md:p-8 max-w-3xl mx-auto">
+
+            <!-- Quality Control -->
+            <div class="mb-6">
+                <label for="qualitySlider" class="block text-lg font-medium text-gray-700 mb-2">JPEG Quality</label>
+                <div class="flex items-center gap-4">
+                    <input id="qualitySlider" type="range" min="0" max="100" value="75" class="flex-grow h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <input id="qualityInput" type="number" min="0" max="100" value="75" class="w-20 p-2 border border-gray-300 rounded-md text-center">
+                </div>
+            </div>
+
+            <!-- File Input -->
+            <div class="mb-6">
+                 <label for="fileInput" class="block text-lg font-medium text-gray-700 mb-2">Select Images or Drop Them Here</label>
+                <input type="file" id="fileInput" multiple accept="image/jpeg, image/png, image/bmp, image/gif" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+            </div>
+            
+            <!-- Process Button -->
+            <div class="text-center">
+                 <button id="compressButton" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    Compress Images
+                </button>
+            </div>
+
+        </div>
+        
+        <!-- Results Section -->
+        <div id="resultsSection" class="mt-8 hidden">
+             <h2 class="text-2xl font-semibold mb-4 text-center">Results</h2>
+             <div id="downloadAllContainer" class="text-center mt-6 hidden">
+                <button id="downloadAllButton" class="bg-purple-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all disabled:bg-gray-500 disabled:cursor-wait">
+                    Download All (.zip)
+                </button>
+            </div>
+            <br>
+             <!-- Grid layout for results -->
+             <div id="resultsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <!-- Compressed image cards will be inserted here by JavaScript -->
+             </div>
+             <!-- Container for the "Download All" button -->
+             
+        </div>
+        
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const qualitySlider = document.getElementById('qualitySlider');
+        const qualityInput = document.getElementById('qualityInput');
+        const fileInput = document.getElementById('fileInput');
+        const compressButton = document.getElementById('compressButton');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const downloadAllContainer = document.getElementById('downloadAllContainer');
+        const downloadAllButton = document.getElementById('downloadAllButton');
+        const dropOverlay = document.getElementById('dropOverlay');
+
+        // --- Event Listeners ---
+        // Sync slider -> input
+        qualitySlider.addEventListener('input', () => {
+            qualityInput.value = qualitySlider.value;
+        });
+
+        // Sync input -> slider
+        qualityInput.addEventListener('input', () => {
+            let value = parseInt(qualityInput.value, 10);
+            if (isNaN(value)) return;
+            if (value < 0) value = 0;
+            if (value > 100) value = 100;
+            
+            if (qualitySlider.value !== value) {
+                qualitySlider.value = value;
+            }
+        });
+
+        qualityInput.addEventListener('blur', () => {
+            let value = parseInt(qualityInput.value, 10);
+            if (isNaN(value) || value < 0) {
+                qualityInput.value = 0;
+            } else if (value > 100) {
+                qualityInput.value = 100;
+            }
+            qualitySlider.value = qualityInput.value;
+        });
+
+        compressButton.addEventListener('click', handleCompression);
+
+        // --- Drag and Drop Event Listeners ---
+        let dragCounter = 0;
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            document.body.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        document.body.addEventListener('dragenter', () => {
+            dragCounter++;
+            dropOverlay.classList.remove('hidden');
+        });
+
+        document.body.addEventListener('dragleave', (e) => {
+            // Check if the leave is to an element outside the window
+             if (e.relatedTarget === null) {
+                dragCounter--;
+                if (dragCounter === 0) {
+                    dropOverlay.classList.add('hidden');
+                }
+            }
+        });
+
+        document.body.addEventListener('drop', (e) => {
+            dragCounter = 0;
+            dropOverlay.classList.add('hidden');
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                // Assign the dropped files to our file input
+                fileInput.files = files;
+            }
+        });
+
+
+        // --- Core Functions ---
+        async function handleCompression() {
+            const files = fileInput.files;
+            if (files.length === 0) {
+                alert('Please select one or more images first.');
+                return;
+            }
+
+            compressButton.disabled = true;
+            compressButton.textContent = 'Processing...';
+            resultsContainer.innerHTML = '';
+            downloadAllContainer.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+
+            const compressedFiles = []; 
+
+            for (const file of files) {
+                try {
+                    const quality = parseInt(qualitySlider.value, 10) / 100;
+                    const compressedResult = await compressImage(file, quality);
+                    displayResult(file, compressedResult);
+                    compressedFiles.push({ originalFile: file, compressedResult });
+                } catch (error) {
+                    console.error('Failed to process file:', file.name, error);
+                    displayError(file, error);
+                }
+            }
+
+            if (compressedFiles.length > 1) {
+                downloadAllContainer.classList.remove('hidden');
+                downloadAllButton.onclick = () => createAndDownloadZip(compressedFiles);
+            }
+            
+            compressButton.disabled = false;
+            compressButton.textContent = 'Compress Images';
+        }
+
+        async function createAndDownloadZip(filesToZip) {
+            const zip = new JSZip();
+            downloadAllButton.disabled = true;
+            downloadAllButton.textContent = 'Zipping...';
+
+            for (const fileData of filesToZip) {
+                const newFileName = fileData.originalFile.name.split('.').slice(0, -1).join('.') + '.jpg';
+                const base64Data = fileData.compressedResult.dataUrl.split(',')[1];
+                zip.file(newFileName, base64Data, { base64: true });
+            }
+
+            try {
+                const content = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'compressed-images.zip';
+                document.body.appendChild(a);
+                a.click();
+                URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch(error) {
+                console.error("Failed to create zip file:", error);
+                alert("Sorry, there was an error creating the zip file.");
+            } finally {
+                downloadAllButton.disabled = false;
+                downloadAllButton.textContent = 'Download All (.zip)';
+            }
+        }
+
+        function compressImage(file, quality) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        const compressedSize = compressedDataUrl.length * (3/4) - 2;
+                        resolve({ dataUrl: compressedDataUrl, size: compressedSize });
+                    };
+                    img.onerror = (error) => reject(error);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+        
+        function displayResult(originalFile, compressedResult) {
+            const originalSizeKB = (originalFile.size / 1024).toFixed(1);
+            const newSizeKB = (compressedResult.size / 1024).toFixed(1);
+
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-lg shadow p-2 flex flex-col text-center aspect-square';
+            
+            card.innerHTML = `
+                <img src="${compressedResult.dataUrl}" alt="Compressed ${originalFile.name}" class="w-full h-full object-cover rounded-md mb-2 flex-grow">
+                <div class="text-xs w-full">
+                    <p class="font-bold text-gray-800 truncate" title="${originalFile.name}">${originalFile.name}</p>
+                    <p class="text-gray-600">
+                        ${originalSizeKB}KB &rarr; <span class="font-medium text-green-600">${newSizeKB}KB</span>
+                    </p>
+                </div>
+                <a href="${compressedResult.dataUrl}" download="${originalFile.name.split('.').slice(0, -1).join('.')}.jpg" class="mt-2 w-full text-center bg-green-500 text-white font-semibold py-1 px-2 rounded hover:bg-green-600 transition-all text-sm">
+                    Download
+                </a>
+            `;
+            resultsContainer.appendChild(card);
+        }
+
+        function displayError(file, error) {
+             const card = document.createElement('div');
+            card.className = 'bg-red-50 rounded-lg shadow p-4 flex flex-col items-center justify-center text-center aspect-square';
+            card.innerHTML = `<p class="font-bold text-red-700">Failed: ${file.name}</p><p class="text-xs text-red-600">${error.message}</p>`;
+            resultsContainer.appendChild(card);
+        }
+
+    </script>
+</body>
+</html>
