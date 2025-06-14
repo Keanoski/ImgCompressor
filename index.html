@@ -13,55 +13,113 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            overflow-x: hidden; /* Prevent horizontal scrollbars from appearing during rotation */
+            overflow-x: hidden;
         }
-        /* Simple transition for better UX */
         .transition-all {
             transition: all 0.3s ease-in-out;
         }
         .aspect-square {
             aspect-ratio: 1 / 1;
         }
-        /* Hide number input arrows on Chrome, Safari, Edge, Opera */
         input::-webkit-outer-spin-button,
         input::-webkit-inner-spin-button {
           -webkit-appearance: none;
           margin: 0;
         }
-        /* Hide number input arrows on Firefox */
         input[type=number] {
           -moz-appearance: textfield;
         }
         #dropOverlay {
             transition: opacity 0.2s ease-in-out;
         }
-        /* Make rotation feel more direct by removing CSS transition */
         #mainCard {
             transition: none;
         }
-
-        /* --- Style for the drag handle --- */
         #dragHandle {
             position: absolute;
             bottom: 0;
             right: 0;
-            width: 10px; /* Restored size for usability */
-            height: 10px; /* Restored size for usability */
-            background-color: none; /* Restored color for visibility */
+            width: 16px; 
+            height: 16px;
+            background-color: none; 
             cursor: grab;
-            /* Creates a triangle shape in the corner */
             clip-path: polygon(100% 0, 0 100%, 100% 100%);
-            border-bottom-right-radius: 0.75rem; /* Match the parent card's rounding */
+            border-bottom-right-radius: 0.75rem;
             transition: background-color 0.2s;
         }
         #dragHandle:hover {
-            background-color: #2563eb; /* A darker blue on hover */
+            background-color: #2563eb;
         }
+
+        /* Styles for file previews */
+        .preview-card {
+            position: relative;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s, opacity 0.2s;
+            background-color: #f3f4f6;
+        }
+        .preview-card.selected {
+            border-color: #3b82f6;
+        }
+        .preview-card:not(.selected) {
+            opacity: 0.6;
+        }
+        .preview-card:not(.selected):hover {
+            opacity: 1;
+        }
+        .preview-card .checkmark {
+            display: none;
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .preview-card.selected .checkmark {
+            display: flex;
+        }
+        .preview-card .info-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 4px 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            line-height: 1;
+        }
+
+        /* --- Styles for toggle switch --- */
+        /* MODIFIED: Changed blue to green for active state */
+        .toggle-checkbox:checked ~ .toggle-dot {
+            transform: translateX(1.25rem);
+            background-color: #22c55e; /* green-500 */
+        }
+        .toggle-checkbox:checked ~ .toggle-track {
+             background-color: #86efac; /* green-300 */
+        }
+        .disabled-control {
+            opacity: 0.5;
+        }
+        .disabled-control input, .disabled-control button {
+            pointer-events: none;
+        }
+
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
 
-    <!-- Drag and Drop Overlay -->
     <div id="dropOverlay" class="hidden fixed inset-0 bg-blue-600 bg-opacity-70 z-50 flex items-center justify-center border-4 border-dashed border-white rounded-lg p-4">
         <div class="text-center text-white">
             <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -73,76 +131,98 @@
 
 
     <div class="container mx-auto p-4 md:p-8 max-w-5xl">
-
-        <!-- Header -->
         <header class="text-center mb-8">
             <span>BC In-House</span>
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Image Compressor</h1>
             <p class="text-gray-600 mt-2">Compress your JPG, PNG, and BMP images directly in your browser.</p>
         </header>
 
-        <!-- Main Application Card -->
         <div id="mainCard" class="bg-white rounded-xl shadow-lg p-6 md:p-8 max-w-3xl mx-auto relative">
 
-            <!-- Quality Control -->
-            <div class="mb-6">
-                <label for="qualitySlider" class="block text-lg font-medium text-gray-700 mb-2">Image Quality</label>
-                <div class="flex items-center gap-4">
-                    <input id="qualitySlider" type="range" min="0" max="80" value="60"  class="flex-grow h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                    <input id="qualityInput" type="number" min="0" max="80" value="60"  class="w-20 p-2 border border-gray-300 rounded-md text-center">
+            <!-- Controls Container -->
+            <div class="flex flex-col md:flex-row md:space-x-8 space-y-6 md:space-y-0 mb-6">
+                <!-- Quality Control -->
+                <div id="qualityControlContainer" class="flex-1">
+                    <div class="flex items-center mb-2">
+                        <label for="qualityToggle" class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="qualityToggle" class="toggle-checkbox sr-only" checked>
+                                <div class="toggle-track block bg-gray-600 w-11 h-6 rounded-full"></div>
+                                <div class="toggle-dot absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full transition"></div>
+                            </div>
+                        </label>
+                        <label class="text-lg font-medium text-gray-700 ml-3">Image Quality</label>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <input id="qualitySlider" type="range" min="0" max="80" value="60"  class="flex-grow h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        <input id="qualityInput" type="number" min="0" max="80" value="60"  class="w-20 p-2 border border-gray-300 rounded-md text-center">
+                    </div>
+                </div>
+
+                <!-- Scale Control -->
+                <div id="scaleControlContainer" class="flex-1">
+                     <div class="flex items-center mb-2">
+                        <label for="scaleToggle" class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="scaleToggle" class="toggle-checkbox sr-only" checked>
+                                <div class="toggle-track block bg-gray-600 w-11 h-6 rounded-full"></div>
+                                <div class="toggle-dot absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full transition"></div>
+                            </div>
+                        </label>
+                        <label class="text-lg font-medium text-gray-700 ml-3">Image Scale</label>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <input id="scaleSlider" type="range" min="10" max="100" value="100" step="1" class="flex-grow h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="relative">
+                            <input id="scaleInput" type="number" min="10" max="100" value="100" class="w-20 p-2 border border-gray-300 rounded-md text-center pr-6">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- File Input -->
             <div class="mb-6">
                  <label for="fileInput" class="block text-lg font-medium text-gray-700 mb-2">Select Images or Drop Them Here</label>
                 <input type="file" id="fileInput" multiple accept="image/jpeg, image/png, image/bmp, image/gif" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
             </div>
             
-            <!-- Process Button -->
+            <div id="previewContainer" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-6"></div>
+            
             <div class="text-center">
                  <button id="compressButton" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed">
                     Compress Images
                 </button>
             </div>
             
-            <!-- Corner drag handle for rotation -->
             <div id="dragHandle"></div>
-
         </div>
         
-        <!-- Results Section -->
         <div id="resultsSection" class="mt-8 hidden">
              <h2 class="text-2xl font-semibold mb-4 text-center">Results</h2>
-             
-             <!-- Total Stats Summary -->
-             <div id="totalStatsContainer" class="bg-gray-50 rounded-lg p-4 max-w-md mx-auto mb-6 text-center hidden">
-                <!-- Content will be injected by JS -->
-             </div>
-
-             <!-- Container for the "Download All" button -->
+             <div id="totalStatsContainer" class="bg-gray-50 rounded-lg p-4 max-w-md mx-auto mb-6 text-center hidden"></div>
              <div id="downloadAllContainer" class="text-center mt-6 hidden">
                 <button id="downloadAllButton" class="bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all disabled:bg-gray-500 disabled:cursor-wait">
                     Download All (.zip)
                 </button>
             </div>
             <br>
-
-             <!-- Grid layout for results -->
-             <div id="resultsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                <!-- Compressed image cards will be inserted here by JavaScript -->
-             </div>
-
-            
+             <div id="resultsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
         </div>
         
     </div>
 
     <script>
-        // --- DOM Element References ---
+        // DOM Element References
         const qualitySlider = document.getElementById('qualitySlider');
         const qualityInput = document.getElementById('qualityInput');
+        const qualityToggle = document.getElementById('qualityToggle');
+        const qualityControlContainer = document.getElementById('qualityControlContainer');
+        const scaleSlider = document.getElementById('scaleSlider');
+        const scaleInput = document.getElementById('scaleInput');
+        const scaleToggle = document.getElementById('scaleToggle');
+        const scaleControlContainer = document.getElementById('scaleControlContainer');
         const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
         const compressButton = document.getElementById('compressButton');
         const resultsSection = document.getElementById('resultsSection');
         const resultsContainer = document.getElementById('resultsContainer');
@@ -153,53 +233,94 @@
         const mainCard = document.getElementById('mainCard');
         const dragHandle = document.getElementById('dragHandle');
 
+        let fileList = [];
 
         // --- Event Listeners ---
         compressButton.addEventListener('click', handleCompression);
+        fileInput.addEventListener('change', (e) => handleFileSelection(e.target.files));
 
-        // --- Drag and Drop Event Listeners ---
+        // --- Drag and Drop ---
         let dragCounter = 0;
-        
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             document.body.addEventListener(eventName, e => {
                 e.preventDefault();
                 e.stopPropagation();
             });
         });
-
         document.body.addEventListener('dragenter', () => {
             dragCounter++;
             dropOverlay.classList.remove('hidden');
         });
-
         document.body.addEventListener('dragleave', (e) => {
              if (e.relatedTarget === null || e.target === dropOverlay) {
                 dragCounter--;
-                if (dragCounter === 0) {
-                    dropOverlay.classList.add('hidden');
-                }
+                if (dragCounter === 0) dropOverlay.classList.add('hidden');
             }
         });
-
         document.body.addEventListener('drop', (e) => {
             dragCounter = 0;
             dropOverlay.classList.add('hidden');
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                fileInput.files = files;
-            }
+            handleFileSelection(e.dataTransfer.files);
         });
 
+        // --- File Previews ---
+        function handleFileSelection(files) {
+            previewContainer.classList.remove('hidden');
+            for(const file of files) {
+                if(!file.type.startsWith('image/')) continue;
+                const fileId = crypto.randomUUID();
+                const fileObject = { id: fileId, file, selected: true };
+                fileList.push(fileObject);
+                createPreviewCard(fileObject);
+            }
+            updateCompressButtonState();
+        }
+
+        function createPreviewCard(fileObject) {
+            const reader = new FileReader();
+            reader.readAsDataURL(fileObject.file);
+            reader.onload = (readerEvent) => {
+                const img = new Image();
+                img.onload = () => {
+                    const card = document.createElement('div');
+                    card.className = 'preview-card selected aspect-square rounded-lg overflow-hidden';
+                    card.dataset.id = fileObject.id;
+                    const sizeInKB = fileObject.file.size / 1024;
+                    const displaySize = sizeInKB > 1024 ? `${(sizeInKB / 1024).toFixed(2)} MB` : `${sizeInKB.toFixed(1)} KB`;
+                    card.innerHTML = `
+                        <img src="${readerEvent.target.result}" class="w-full h-full object-cover">
+                        <div class="checkmark"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></div>
+                        <div class="info-overlay"><span>${img.width}x${img.height}</span><span class="font-semibold">${displaySize}</span></div>`;
+                    card.addEventListener('click', () => toggleFileSelection(fileObject.id));
+                    previewContainer.appendChild(card);
+                };
+                img.src = readerEvent.target.result;
+            };
+        }
+
+        function toggleFileSelection(fileId) {
+            const fileObject = fileList.find(f => f.id === fileId);
+            if(fileObject) {
+                fileObject.selected = !fileObject.selected;
+                previewContainer.querySelector(`[data-id="${fileId}"]`).classList.toggle('selected');
+                updateCompressButtonState();
+            }
+        }
+
+        function updateCompressButtonState() {
+            const selectedCount = fileList.filter(f => f.selected).length;
+            compressButton.disabled = selectedCount === 0;
+            compressButton.textContent = selectedCount > 0 ? `Compress ${selectedCount} Image(s)` : 'Select Images to Compress';
+        }
 
         // --- Core Functions ---
         async function handleCompression() {
-            const files = fileInput.files;
-            if (files.length === 0) {
-                alert('Please select one or more images first.');
+            const filesToCompress = fileList.filter(f => f.selected).map(f => f.file);
+            if (filesToCompress.length === 0) {
+                alert('Please select one or more images to compress.');
                 return;
             }
 
-            // Reset UI
             compressButton.disabled = true;
             compressButton.textContent = 'Processing...';
             resultsContainer.innerHTML = '';
@@ -211,59 +332,45 @@
             let totalOriginalSize = 0;
             let totalCompressedSize = 0;
 
-            for (const file of files) {
+            for (const file of filesToCompress) {
                 try {
-                    const quality = parseInt(qualitySlider.value, 10) / 100;
-                    const compressedResult = await compressImage(file, quality);
-                    
+                    const quality = qualityToggle.checked ? parseInt(qualitySlider.value, 10) / 100 : 0.8;
+                    const scale = scaleToggle.checked ? parseInt(scaleSlider.value, 10) : 100;
+                    const compressedResult = await compressImage(file, quality, scale);
                     displayResult(file, compressedResult);
-                    
-                    // Add to lists for zipping and total calculation
                     compressedFiles.push({ originalFile: file, compressedResult });
                     totalOriginalSize += file.size;
                     totalCompressedSize += compressedResult.size;
-
                 } catch (error) {
                     console.error('Failed to process file:', file.name, error);
                     displayError(file, error);
                 }
             }
             
-            // Display summary and "Download All" button if multiple files were compressed
             if (compressedFiles.length > 1) {
                 const totalOriginalKB = (totalOriginalSize / 1024).toFixed(1);
                 const totalCompressedKB = (totalCompressedSize / 1024).toFixed(1);
                 const totalReduction = 100 - (totalCompressedSize / totalOriginalSize * 100);
-
                 totalStatsContainer.innerHTML = `
                     <h3 class="font-bold text-lg text-gray-800">Total Savings</h3>
-                    <p class="text-gray-600">
-                        Original: <span class="font-medium">${totalOriginalKB} KB</span> | 
-                        Compressed: <span class="font-medium text-green-600">${totalCompressedKB} KB</span>
-                    </p>
-                    <p class="font-semibold text-green-700">Total size reduction: ${totalReduction.toFixed(1)}%</p>
-                `;
+                    <p class="text-gray-600">Original: <span class="font-medium">${totalOriginalKB} KB</span> | Compressed: <span class="font-medium text-green-600">${totalCompressedKB} KB</span></p>
+                    <p class="font-semibold text-green-700">Total size reduction: ${totalReduction.toFixed(1)}%</p>`;
                 totalStatsContainer.classList.remove('hidden');
-
                 downloadAllContainer.classList.remove('hidden');
                 downloadAllButton.onclick = () => createAndDownloadZip(compressedFiles);
             }
-            
-            compressButton.disabled = false;
-            compressButton.textContent = 'Compress Images';
+            updateCompressButtonState();
         }
 
         async function createAndDownloadZip(filesToZip) {
             const zip = new JSZip();
             downloadAllButton.disabled = true;
             downloadAllButton.textContent = 'Zipping...';
-
             for (const fileData of filesToZip) {
                 const newFileName = fileData.originalFile.name.split('.').slice(0, -1).join('.') + '.jpg';
                 const base64Data = fileData.compressedResult.dataUrl.split(',')[1];
                 zip.file(newFileName, base64Data, { base64: true });
             }
-
             try {
                 const content = await zip.generateAsync({ type: "blob" });
                 const url = URL.createObjectURL(content);
@@ -277,14 +384,13 @@
                 document.body.removeChild(a);
             } catch(error) {
                 console.error("Failed to create zip file:", error);
-                alert("Sorry, there was an error creating the zip file.");
             } finally {
                 downloadAllButton.disabled = false;
                 downloadAllButton.textContent = 'Download All (.zip)';
             }
         }
 
-        function compressImage(file, quality) {
+        function compressImage(file, quality, scale) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
@@ -293,39 +399,33 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        canvas.width = img.width;
-                        canvas.height = img.height;
+                        const scaleFactor = scale / 100;
+                        canvas.width = Math.round(img.width * scaleFactor);
+                        canvas.height = Math.round(img.height * scaleFactor);
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
                         const compressedSize = compressedDataUrl.length * (3/4) - 2;
                         resolve({ dataUrl: compressedDataUrl, size: compressedSize });
                     };
-                    img.onerror = (error) => reject(error);
+                    img.onerror = reject;
                 };
-                reader.onerror = (error) => reject(error);
+                reader.onerror = reject;
             });
         }
         
         function displayResult(originalFile, compressedResult) {
             const originalSizeKB = (originalFile.size / 1024).toFixed(1);
             const newSizeKB = (compressedResult.size / 1024).toFixed(1);
-
             const card = document.createElement('div');
             card.className = 'bg-white rounded-lg shadow p-2 flex flex-col text-center aspect-square';
-            
             card.innerHTML = `
                 <img src="${compressedResult.dataUrl}" alt="Compressed ${originalFile.name}" class="w-full h-full object-cover rounded-md mb-2 flex-grow">
                 <div class="text-xs w-full">
                     <p class="font-bold text-gray-800 truncate" title="${originalFile.name}">${originalFile.name}</p>
-                    <p class="text-gray-600">
-                        ${originalSizeKB}KB &rarr; <span class="font-medium text-green-600">${newSizeKB}KB</span>
-                    </p>
+                    <p class="text-gray-600">${originalSizeKB}KB &rarr; <span class="font-medium text-green-600">${newSizeKB}KB</span></p>
                 </div>
-                <a href="${compressedResult.dataUrl}" download="${originalFile.name.split('.').slice(0, -1).join('.')}.jpg" class="mt-2 w-full text-center bg-green-500 text-white font-semibold py-1 px-2 rounded hover:bg-green-600 transition-all text-sm">
-                    Download
-                </a>
-            `;
+                <a href="${compressedResult.dataUrl}" download="${originalFile.name.split('.').slice(0, -1).join('.')}.jpg" class="mt-2 w-full text-center bg-green-500 text-white font-semibold py-1 px-2 rounded hover:bg-green-600 transition-all text-sm">Download</a>`;
             resultsContainer.appendChild(card);
         }
 
@@ -336,138 +436,108 @@
             resultsContainer.appendChild(card);
         }
         
-        // --- Physics & Rotation Logic (with Touch Support) ---
-
-        // Physics variables
+        // --- Physics & Rotation Logic ---
         let sliderPosition = parseFloat(qualitySlider.value);
         let sliderVelocity = 0;
         let currentCardRotationRad = 0; 
-        
         const GRAVITY_FORCE = 300; 
         const DAMPING_FACTOR = 0.95; 
-        const BOUNCE_DAMPING = -0.9;
-
-        // Rotation state variables
+        const BOUNCE_DAMPING = -0.4;
         let isRotating = false;
         let startDragAngle = 0;
-
         mainCard.style.transformOrigin = 'center center';
-
-        // --- NEW: Unified event listeners for mouse and touch ---
         dragHandle.addEventListener('mousedown', rotationStart);
         dragHandle.addEventListener('touchstart', rotationStart);
-
         function rotationStart(e) {
             e.preventDefault();
             isRotating = true;
             dragHandle.style.cursor = 'grabbing';
-            
             const rect = mainCard.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
-
             const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
             const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-            
             let mouseAngle = Math.atan2(clientY - centerY, clientX - centerX);
             startDragAngle = mouseAngle - currentCardRotationRad;
-            
-            if (e.type === 'touchstart') {
-                document.addEventListener('touchmove', rotationMove);
-                document.addEventListener('touchend', rotationEnd);
-            } else {
-                document.addEventListener('mousemove', rotationMove);
-                document.addEventListener('mouseup', rotationEnd);
-            }
+            document.addEventListener(e.type === 'touchstart' ? 'touchmove' : 'mousemove', rotationMove);
+            document.addEventListener(e.type === 'touchstart' ? 'touchend' : 'mouseup', rotationEnd);
         }
-
         function rotationMove(e) {
             if (!isRotating) return;
-            // No preventDefault() here to allow scrolling on touch devices if drag starts outside the handle
             const rect = mainCard.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
-
             const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
             const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-
             const currentMouseAngle = Math.atan2(clientY - centerY, clientX - centerX);
-            const newRotationRad = currentMouseAngle - startDragAngle;
-            
-            applyRotation(newRotationRad);
+            applyRotation(currentMouseAngle - startDragAngle);
         }
-
         function rotationEnd(e) {
             if (!isRotating) return;
             isRotating = false;
             dragHandle.style.cursor = 'grab';
-            
             document.removeEventListener('mousemove', rotationMove);
             document.removeEventListener('mouseup', rotationEnd);
             document.removeEventListener('touchmove', rotationMove);
             document.removeEventListener('touchend', rotationEnd);
         }
-
         function applyRotation(angleRad) {
             currentCardRotationRad = angleRad;
-            const angleDeg = angleRad * (180 / Math.PI);
-            mainCard.style.transform = `rotate(${angleDeg}deg)`;
+            mainCard.style.transform = `rotate(${angleRad * (180 / Math.PI)}deg)`;
         }
-
         function physicsLoop() {
+            if (!qualityToggle.checked) {
+                requestAnimationFrame(physicsLoop);
+                return;
+            }
             const acceleration = GRAVITY_FORCE * Math.sin(currentCardRotationRad);
-            
             sliderVelocity += acceleration * (1 / 60); 
             sliderVelocity *= DAMPING_FACTOR;
             sliderPosition += sliderVelocity * (1 / 60);
-
             const min = parseFloat(qualitySlider.min);
             const max = parseFloat(qualitySlider.max);
-
-            if (sliderPosition < min) {
-                sliderPosition = min;
-                sliderVelocity *= BOUNCE_DAMPING;
-            } else if (sliderPosition > max) {
-                sliderPosition = max;
-                sliderVelocity *= BOUNCE_DAMPING;
-            }
-            
-            // Only update UI if the value changes to avoid unnecessary redraws
+            if (sliderPosition < min) { sliderPosition = min; sliderVelocity *= BOUNCE_DAMPING; } 
+            else if (sliderPosition > max) { sliderPosition = max; sliderVelocity *= BOUNCE_DAMPING; }
             if (Math.round(sliderPosition) !== Math.round(qualitySlider.value)) {
                  qualitySlider.value = sliderPosition;
                  qualityInput.value = Math.round(sliderPosition);
             }
-
             requestAnimationFrame(physicsLoop);
         }
         
-        // --- Listeners to override physics with manual input ---
+        // --- Control Listeners ---
+        qualityToggle.addEventListener('change', function() {
+            qualityControlContainer.classList.toggle('disabled-control', !this.checked);
+        });
+        scaleToggle.addEventListener('change', function() {
+            scaleControlContainer.classList.toggle('disabled-control', !this.checked);
+        });
         qualitySlider.addEventListener('input', () => {
             sliderPosition = parseFloat(qualitySlider.value);
-            sliderVelocity = 0; // Stop any motion when user takes control
+            sliderVelocity = 0;
             qualityInput.value = qualitySlider.value;
         });
-
         qualityInput.addEventListener('input', () => {
             let value = parseInt(qualityInput.value, 10);
             if (!isNaN(value)) {
-                 if (value < 0) value = 0;
-                 if (value > 80) value = 80;
+                 if (value < 0) value = 0; if (value > 80) value = 80;
                  qualityInput.value = value;
                  sliderPosition = value;
-                 sliderVelocity = 0; // Stop motion
+                 sliderVelocity = 0;
             }
         });
-
-        qualityInput.addEventListener('blur', () => {
-            if (qualityInput.value === '') {
-                qualityInput.value = Math.round(sliderPosition);
-            }
+        scaleSlider.addEventListener('input', () => { scaleInput.value = scaleSlider.value; });
+        scaleInput.addEventListener('input', () => {
+            let value = parseInt(scaleInput.value, 10);
+            if (isNaN(value)) return;
+            if (value < 10) value = 10; if (value > 100) value = 100;
+            scaleInput.value = value;
+            scaleSlider.value = value;
         });
-
-        // Start the physics simulation loop
+        
+        // --- Initialisation ---
         requestAnimationFrame(physicsLoop);
-
+        updateCompressButtonState();
     </script>
 </body>
 </html>
