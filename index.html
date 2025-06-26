@@ -39,13 +39,14 @@
             position: absolute;
             bottom: 0;
             right: 0;
-            width: 16px; 
-            height: 16px;
-            background-color: none; 
+            width: 48px; 
+            height: 48px;
+            background-color: #3b82f6; 
             cursor: grab;
             clip-path: polygon(100% 0, 0 100%, 100% 100%);
             border-bottom-right-radius: 0.75rem;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, opacity 0.3s;
+            display: none;
         }
         #dragHandle:hover {
             background-color: #2563eb;
@@ -60,7 +61,7 @@
             background-color: #f3f4f6;
         }
         .preview-card.selected {
-            border-color: #3b82f6;
+            border-color: #22c55e; /* Green border for selected */
         }
         .preview-card:not(.selected) {
             opacity: 0.6;
@@ -71,11 +72,13 @@
         .preview-card .checkmark {
             display: none;
             position: absolute;
+            /* MODIFIED: Moved to top-right */
             top: 4px;
             right: 4px;
             width: 24px;
             height: 24px;
-            background-color: #3b82f6;
+            /* MODIFIED: Changed color to green */
+            background-color: #22c55e;
             color: white;
             border-radius: 50%;
             justify-content: center;
@@ -85,7 +88,7 @@
         .preview-card.selected .checkmark {
             display: flex;
         }
-        .preview-card .info-overlay {
+        .info-overlay {
             position: absolute;
             bottom: 0;
             left: 0;
@@ -99,14 +102,30 @@
             font-size: 11px;
             line-height: 1;
         }
+        .filename-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 5px 8px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0));
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: left; /* Changed to left for better layout with checkmark on right */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            z-index: 5;
+        }
 
         /* --- Styles for toggle switch --- */
         .toggle-checkbox:checked ~ .toggle-dot {
             transform: translateX(1.25rem);
-            background-color: #22c55e; /* green-500 */
+            background-color: #22c55e;
         }
         .toggle-checkbox:checked ~ .toggle-track {
-             background-color: #86efac; /* green-300 */
+             background-color: #86efac;
         }
         .disabled-control {
             opacity: 0.5;
@@ -173,7 +192,7 @@
                     <div class="flex items-center gap-4">
                         <input id="scaleSlider" type="range" min="10" max="100" value="100" step="1" class="flex-grow h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                         <div class="relative">
-                            <input id="scaleInput" type="number" min="10" max="100" value="100" class="w-20 p-2 border border-gray-300 rounded-md text-center pr-6">
+                            <input id="scaleInput" type="number" min="10" max="100" value="100" class="w-20 p-2 border border-gray-300 rounded-md text-center pr-6 disabled-control">
                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
                         </div>
                     </div>
@@ -200,7 +219,7 @@
              <h2 class="text-2xl font-semibold mb-4 text-center">Results</h2>
              <div id="totalStatsContainer" class="bg-gray-50 rounded-lg p-4 max-w-md mx-auto mb-6 text-center hidden"></div>
              <div id="downloadAllContainer" class="text-center mt-6 hidden">
-                <button id="downloadAllButton" class="bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all disabled:bg-gray-500 disabled:cursor-wait">
+                <button id="downloadAllButton" class="bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all disabled:bg-gray-500 disabled:cursor-wait">
                     Download All (.zip)
                 </button>
             </div>
@@ -284,17 +303,50 @@
                     const card = document.createElement('div');
                     card.className = 'preview-card selected aspect-square rounded-lg overflow-hidden';
                     card.dataset.id = fileObject.id;
+                    card.dataset.originalWidth = img.width;
+                    card.dataset.originalHeight = img.height;
+
                     const sizeInKB = fileObject.file.size / 1024;
                     const displaySize = sizeInKB > 1024 ? `${(sizeInKB / 1024).toFixed(2)} MB` : `${sizeInKB.toFixed(1)} KB`;
+
+                    const scaleFactor = scaleToggle.checked ? parseInt(scaleSlider.value, 10) / 100 : 1;
+                    const displayWidth = Math.round(img.width * scaleFactor);
+                    const displayHeight = Math.round(img.height * scaleFactor);
+                    
                     card.innerHTML = `
                         <img src="${readerEvent.target.result}" class="w-full h-full object-cover">
+                        <div class="filename-overlay" title="${fileObject.file.name}">${fileObject.file.name}</div>
                         <div class="checkmark"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></div>
-                        <div class="info-overlay"><span>${img.width}x${img.height}</span><span class="font-semibold">${displaySize}</span></div>`;
+                        <div class="info-overlay">
+                            <span class="dimensions">${displayWidth}x${displayHeight}</span>
+                            <span class="font-semibold">${displaySize}</span>
+                        </div>`;
                     card.addEventListener('click', () => toggleFileSelection(fileObject.id));
                     previewContainer.appendChild(card);
                 };
                 img.src = readerEvent.target.result;
             };
+        }
+
+        function updateAllPreviewDimensions() {
+            const scaleIsActive = scaleToggle.checked;
+            const scaleFactor = parseInt(scaleSlider.value, 10) / 100;
+
+            document.querySelectorAll('.preview-card').forEach(card => {
+                const originalWidth = card.dataset.originalWidth;
+                const originalHeight = card.dataset.originalHeight;
+                const dimensionsSpan = card.querySelector('.dimensions');
+
+                if (originalWidth && dimensionsSpan) {
+                    if (scaleIsActive) {
+                        const newWidth = Math.round(originalWidth * scaleFactor);
+                        const newHeight = Math.round(originalHeight * scaleFactor);
+                        dimensionsSpan.textContent = `${newWidth}x${newHeight}`;
+                    } else {
+                        dimensionsSpan.textContent = `${originalWidth}x${originalHeight}`;
+                    }
+                }
+            });
         }
 
         function toggleFileSelection(fileId) {
@@ -510,6 +562,7 @@
         });
         scaleToggle.addEventListener('change', function() {
             scaleControlContainer.classList.toggle('disabled-control', !this.checked);
+            updateAllPreviewDimensions();
         });
         qualitySlider.addEventListener('input', () => {
             sliderPosition = parseFloat(qualitySlider.value);
@@ -525,15 +578,36 @@
                  sliderVelocity = 0;
             }
         });
-        scaleSlider.addEventListener('input', () => { scaleInput.value = scaleSlider.value; });
+        scaleSlider.addEventListener('input', () => { 
+            scaleInput.value = scaleSlider.value;
+            updateAllPreviewDimensions();
+        });
         scaleInput.addEventListener('input', () => {
             let value = parseInt(scaleInput.value, 10);
             if (isNaN(value)) return;
             if (value < 10) value = 10; if (value > 100) value = 100;
             scaleInput.value = value;
             scaleSlider.value = value;
+            updateAllPreviewDimensions();
         });
         
+        // --- Konami Code Easter Egg ---
+        const konamiCode = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a', 'enter'];
+        let konamiCodePosition = 0;
+        document.addEventListener('keydown', function(e) {
+            const requiredKey = konamiCode[konamiCodePosition];
+            const keyPressed = e.key.toLowerCase();
+            if (keyPressed === requiredKey) {
+                konamiCodePosition++;
+                if (konamiCodePosition === konamiCode.length) {
+                    dragHandle.style.display = 'block';
+                    konamiCodePosition = 0;
+                }
+            } else {
+                konamiCodePosition = 0;
+            }
+        });
+
         // --- Initialisation ---
         requestAnimationFrame(physicsLoop);
         updateCompressButtonState();
