@@ -23,7 +23,7 @@
 
 ## How to Use
 
-1.  **Open [Image Compressor](https://balticcontrol.github.io/ImageCompressor/)** in any modern web browser.
+1.  **Open [Image Compressor](https://keanoski.github.io/img-compression-and-scaling-webapp/)** in any modern web browser.
 2.  **Add Images:**
     -   Click the **"Select Images"** button to open a file dialog.
     -   Or, **drag and drop** your image files directly onto the page.
