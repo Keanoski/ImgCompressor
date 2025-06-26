@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Compressor</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Add JSZip library for zipping files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -61,7 +60,7 @@
             background-color: #f3f4f6;
         }
         .preview-card.selected {
-            border-color: #22c55e; /* Green border for selected */
+            border-color: #22c55e; 
         }
         .preview-card:not(.selected) {
             opacity: 0.6;
@@ -72,12 +71,10 @@
         .preview-card .checkmark {
             display: none;
             position: absolute;
-            /* MODIFIED: Moved to top-right */
             top: 4px;
             right: 4px;
             width: 24px;
             height: 24px;
-            /* MODIFIED: Changed color to green */
             background-color: #22c55e;
             color: white;
             border-radius: 50%;
@@ -112,7 +109,7 @@
             color: white;
             font-size: 12px;
             font-weight: 500;
-            text-align: left; /* Changed to left for better layout with checkmark on right */
+            text-align: left;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -150,7 +147,6 @@
 
     <div class="container mx-auto p-4 md:p-8 max-w-5xl">
         <header class="text-center mb-8">
-            <span>BC In-House</span>
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Image Compressor</h1>
             <p class="text-gray-600 mt-2">Compress your JPG, PNG, and BMP images directly in your browser.</p>
         </header>
