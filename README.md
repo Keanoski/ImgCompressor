@@ -59,11 +59,6 @@ They are included in the `<head>` section as follows:
 
 The entire application is self-contained in `index.html`. This file includes all HTML structure, custom CSS styles, and the core JavaScript logic.
 
-```text
-.
-└── index.html
-```
-
 ## Technical Breakdown
 
 ### UI Components
