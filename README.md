@@ -5,7 +5,6 @@
 - [Key Features](#key-features)
 - [How to Use](#how-to-use)
 - [Dependencies](#dependencies)
-- [File Structure](#file-structure)
 - [Technical Breakdown](#technical-breakdown)
   - [UI Components](#ui-components)
   - [Core Logic (JavaScript)](#core-logic-javascript)
