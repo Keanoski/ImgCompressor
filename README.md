@@ -55,10 +55,6 @@ They are included in the `<head>` section as follows:
 <script src="[https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js](https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js)"></script>
 ````
 
-## File Structure
-
-The entire application is self-contained in `index.html`. This file includes all HTML structure, custom CSS styles, and the core JavaScript logic.
-
 ## Technical Breakdown
 
 ### UI Components
